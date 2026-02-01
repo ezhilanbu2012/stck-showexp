@@ -28,15 +28,12 @@ cd fin
 ./.venv/bin/pip install -r requirements.txt
 ```
 
-### Running the CLI
-```bash
 ./.venv/bin/python3 main.py
 ```
 
-### Supported Commands
-- `load [count]` - Fetch top N symbols from NSE.
-- `download [start] [end]` - Download historical data.
-- `analyze` - Run performance and signal analysis.
+### Running the Web App
+```bash
+./.venv/bin/streamlit run app.py --server.headless true --server.port 8501
 - `plot [symbol]` - Render a price chart in the terminal.
 
 ## 🚀 Roadmap
