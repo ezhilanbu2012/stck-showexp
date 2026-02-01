@@ -2,7 +2,7 @@ const { useState, useEffect, useRef } = React;
 
 // --- Components ---
 
-const Controls = ({ period, setPeriod, interval, setInterval }) => {
+const Controls = ({ period, setPeriod }) => {
     const periods = ['1mo', '3mo', '6mo', '1y', '5y', 'max'];
 
     return (
@@ -131,13 +131,108 @@ const StatCard = ({ label, value, prefix = '' }) => (
     </div>
 );
 
+const FinancialTable = ({ data, title }) => {
+    if (!data || Object.keys(data).length === 0) return <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>No Data Available</div>;
+
+    // Data keys are dates usually
+    const dates = Object.keys(data).sort().reverse();
+    // Rows are the keys in the first date object (assuming structure consistency)
+    // Actually yfinance returns dict of dicts: { "Date": { "Row": Val } } or { "Row": { "Date": Val } }
+    // Let's inspect structure. Based on server conversion: { "row_name": { "date": val, "date2": val } }
+
+    const rows = Object.keys(data);
+    const firstRow = data[rows[0]];
+    const availableDates = Object.keys(firstRow).sort().reverse();
+
+    return (
+        <div className="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{title} Breakdown</th>
+                        {availableDates.map(date => (
+                            <th key={date}>{new Date(date).toLocaleDateString()}</th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map(row => (
+                        <tr key={row}>
+                            <td>{row}</td>
+                            {availableDates.map(date => (
+                                <td key={`${row}-${date}`}>
+                                    {data[row][date] ? data[row][date].toLocaleString() : '-'}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
+const Financials = ({ symbol }) => {
+    const [financials, setFinancials] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('income_statement'); // balance_sheet, cash_flow, income_statement
+
+    useEffect(() => {
+        if (!symbol) return;
+        setLoading(true);
+        axios.get(`http://127.0.0.1:5000/api/stock/${symbol}/financials`)
+            .then(res => {
+                setFinancials(res.data);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error(err);
+                setLoading(false);
+            });
+    }, [symbol]);
+
+    if (loading) return <div className="spinner"></div>;
+    if (!financials) return null;
+
+    return (
+        <div className="financials-section">
+            <div className="financials-tabs">
+                <button
+                    className={`tab-btn ${activeTab === 'income_statement' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('income_statement')}
+                >
+                    Income Statement
+                </button>
+                <button
+                    className={`tab-btn ${activeTab === 'balance_sheet' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('balance_sheet')}
+                >
+                    Balance Sheet
+                </button>
+                <button
+                    className={`tab-btn ${activeTab === 'cash_flow' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('cash_flow')}
+                >
+                    Cash Flow
+                </button>
+            </div>
+
+            {activeTab === 'income_statement' && <FinancialTable data={financials.income_statement} title="Income Statement" />}
+            {activeTab === 'balance_sheet' && <FinancialTable data={financials.balance_sheet} title="Balance Sheet" />}
+            {activeTab === 'cash_flow' && <FinancialTable data={financials.cash_flow} title="Cash Flow" />}
+        </div>
+    );
+};
+
 const App = () => {
     const [stocks, setStocks] = useState([]);
     const [selectedStock, setSelectedStock] = useState(null); // { label, value }
+    const [customStock, setCustomStock] = useState('');
     const [stockData, setStockData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [period, setPeriod] = useState('1y');
+    const [showFinancials, setShowFinancials] = useState(false);
 
     // Fetch list of stocks on mount
     useEffect(() => {
@@ -157,6 +252,7 @@ const App = () => {
         if (!selectedStock) return;
 
         setLoading(true);
+        setShowFinancials(false); // Reset financials view on change
         axios.get(`http://127.0.0.1:5000/api/stock/${selectedStock.value}?period=${period}`)
             .then(res => {
                 setStockData(res.data);
@@ -168,6 +264,15 @@ const App = () => {
             });
     }, [selectedStock, period]);
 
+    const handleCustomSubmit = (e) => {
+        e.preventDefault();
+        if (customStock) {
+            const symbol = customStock.toUpperCase();
+            setSelectedStock({ label: symbol, value: symbol });
+            setSearchTerm('');
+        }
+    };
+
     const filteredStocks = stocks.filter(s =>
         s.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.value.toLowerCase().includes(searchTerm.toLowerCase())
@@ -175,16 +280,7 @@ const App = () => {
 
     // Calculate Price Change
     const getPriceChange = () => {
-        if (!stockData || !stockData.info.currentPrice || !stockData.info.dayHigh) return null; // Fallback logic needed if 'previousClose' is not available
-
-        // Simple approx using history if previousClose not explicitly sent, 
-        // but let's just use open vs close of last candle for now or just rely on visual
-
-        // Better: Calculate change from first point of loaded history to last point for "Period Change"
-        // Or Day change. Let's do Day Change if possible, else Period Change.
-
-        // Let's us Period Change for the chart context
-        if (stockData.history.length < 2) return 0;
+        if (!stockData || !stockData.info || stockData.history.length < 2) return null;
 
         const first = stockData.history[0].close;
         const last = stockData.history[stockData.history.length - 1].close;
@@ -209,11 +305,23 @@ const App = () => {
                 {/* Sidebar */}
                 <aside className="sidebar">
                     <h2>Select Company</h2>
+
+                    <form onSubmit={handleCustomSubmit} className="custom-symbol-container">
+                        <input
+                            type="text"
+                            className="custom-input"
+                            placeholder="Enter Symbol (e.g., TATASTEEL.NS)"
+                            value={customStock}
+                            onChange={(e) => setCustomStock(e.target.value)}
+                        />
+                        <button type="submit" className="go-btn">Go</button>
+                    </form>
+
                     <div className="search-container">
                         <input
                             type="text"
                             className="search-input"
-                            placeholder="Search companies..."
+                            placeholder="Filter list..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -246,7 +354,7 @@ const App = () => {
                                 </div>
                                 <div className="price-container">
                                     <span className="current-price">
-                                        ₹{stockData.info.currentPrice?.toLocaleString()}
+                                        ₹{stockData.info.currentPrice?.toLocaleString() || stockData.history[stockData.history.length - 1].close.toFixed(2)}
                                     </span>
                                     {priceChange && (
                                         <div className={`price-change ${priceChange.change >= 0 ? 'positive' : 'negative'}`}>
@@ -269,10 +377,19 @@ const App = () => {
                                 <StatCard label="52W Low" value={stockData.info.fiftyTwoWeekLow} prefix="₹" />
                                 <StatCard label="Volume" value={stockData.history[stockData.history.length - 1]?.volume} />
                             </div>
+
+                            <div className="financials-btn-container">
+                                <button className="view-financials-btn" onClick={() => setShowFinancials(!showFinancials)}>
+                                    {showFinancials ? 'Hide Financials' : 'View Financial Statements'}
+                                </button>
+                            </div>
+
+                            {showFinancials && <Financials symbol={selectedStock.value} />}
+
                         </React.Fragment>
                     ) : (
                         <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text-secondary)' }}>
-                            Select a stock to view details
+                            Select a stock or search for a symbol to view details
                         </div>
                     )}
                 </main>

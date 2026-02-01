@@ -82,5 +82,36 @@ def get_stock_data(symbol):
         app.logger.error(f"Error serving request: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/stock/<symbol>/financials', methods=['GET'])
+def get_stock_financials(symbol):
+    """
+    Fetches financial statements for the given symbol.
+    """
+    try:
+        app.logger.info(f"Fetching financials for {symbol}")
+        stock = yf.Ticker(symbol)
+        
+        # Helper to convert DataFrame to dict
+        def clean_df(df):
+            if df is None or df.empty:
+                return {}
+            # Fill NaN with 0 or None for JSON serialization
+            df = df.fillna(0)
+            # Convert columns (Dates) to string
+            df.columns = df.columns.astype(str)
+            return df.to_dict()
+
+        financials = {
+            "balance_sheet": clean_df(stock.balance_sheet),
+            "income_statement": clean_df(stock.income_stmt),
+            "cash_flow": clean_df(stock.cashflow)
+        }
+        
+        return jsonify(financials)
+
+    except Exception as e:
+        app.logger.error(f"Error serving financials: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
