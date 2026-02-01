@@ -1,35 +1,21 @@
-# 🚀 Portfolio Tracker Pro
+# FinTrack - NSE Finance Tracker
 
-A high-performance trading engine and financial dashboard for the Indian Stock Market (NSE). Built with Python, Rich, and soon featuring a powerful Web GUI.
+A modern finance tracker application with a Python Flask backend and a premium React frontend.
 
-## ✨ Features
+## Features
+- **NSE Stock Selector**: Search and select from top NSE companies.
+- **Interactive Charts**: Real-time and historical data visualization.
+- **Key Statistics**: View daily highs/lows, 52-week data, and volume.
+- **Premium Design**: Dark mode with glassmorphism aesthetics.
 
-- **Automated Data Fetching**: Seamless integration with NSE and Yahoo Finance.
-- **Advanced Analytics**:
-  - Annualized Volatility.
-  - SMA (20/50/200) Crossovers.
-  - Automated BUY/SELL/NEUTRAL signals.
-- **Terminal Charts**: Visual price history directly in the console.
-- **Smart Data Handling**: Handles MultiIndex data frames and adjusts for corporate actions.
+## Tech Stack
+- **Backend**: Python, Flask, yfinance
+- **Frontend**: React (No-Build/CDN), Chart.js, Glassmorphism CSS
 
-## 🛠 Usage
+## How to Run
 
-### Prerequisites
-- Python 3.10+
-- Virtual Environment
-
-### Installation
-```bash
-# Clone the repository
-git clone <repo-url>
-cd fin
-
-# Install dependencies
-./.venv/bin/pip install -r requirements.txt
-```
-
-
-### Running the Web App
-```bash
-./.venv/bin/streamlit run app.py --server.headless true --server.port 8501
-```
+1.  Run the start script:
+    ```bash
+    ./start.sh
+    ```
+2.  Open [http://localhost:3000](http://localhost:3000)
