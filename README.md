@@ -28,19 +28,8 @@ cd fin
 ./.venv/bin/pip install -r requirements.txt
 ```
 
-./.venv/bin/python3 main.py
-```
 
 ### Running the Web App
 ```bash
 ./.venv/bin/streamlit run app.py --server.headless true --server.port 8501
-- `plot [symbol]` - Render a price chart in the terminal.
-
-## 🚀 Roadmap
-- [ ] **Web Dashboard**: Interactive React-based UI.
-- [ ] **Indicator Suite**: RSI, MACD, Bollinger Bands.
-- [ ] **Portfolio Management**: Save and track multiple user portfolios.
-- [ ] **Backtesting Engine**: Test trading strategies on historical data.
-
----
-*Disclaimer: This software is for educational purposes only. Always consult a professional before making financial decisions.*
+```
